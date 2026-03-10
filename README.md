@@ -3,6 +3,7 @@
 指令：
 
 > 1. 在当前目录中，使用 Python 3.14 在符合 Python 工程最佳实践的前提下，实现 24 点出题器功能，仅需在 CLI 下出题并提供显示答案的功能。需添加 .gitignore 文件，避免不要的文件或信息泄露至 github
+> 2. 基于当前项目代码，指出十个可以改进的地方，在根目录生成 md 文档保存这些建议。
 
 以下均为 AI 生成。
 > # 24点游戏出题器
@@ -21,30 +22,30 @@
 > - 支持分数运算（如 `8/(3-8/3)=24`）
 > 
 > ## 安装
-> 
-> 要求 Python 3.14 或更高版本。
-> 
+>
+> 要求 Python 3.14 或更高版本，使用 uv 进行包管理。
+>
 > ```bash
 > # 克隆仓库
 > git clone <repository-url>
 > cd PY-24-Point-Generator
-> 
-> # 安装（开发模式）
-> pip install -e ".[dev]"
+>
+> # 安装依赖（包括开发依赖）
+> uv sync --all-extras
 > ```
 > 
 > ## 使用方法
-> 
+>
 > ### 运行程序
-> 
+>
 > ```bash
-> python -m twenty_four
+> uv run python -m twenty_four
 > ```
-> 
-> 或者安装后直接使用命令：
-> 
+>
+> 或者直接使用命令：
+>
 > ```bash
-> twenty-four
+> uv run twenty-four
 > ```
 > 
 > ### 交互界面
@@ -72,23 +73,23 @@
 > ```
 > 
 > ## 开发
-> 
+>
 > ### 运行测试
-> 
+>
 > ```bash
-> pytest
+> uv run pytest
 > ```
-> 
+>
 > ### 类型检查
-> 
+>
 > ```bash
-> mypy src/twenty_four
+> uv run mypy src/twenty_four
 > ```
-> 
+>
 > ### 代码格式化
-> 
+>
 > ```bash
-> ruff format src tests
+> uv run ruff format src tests
 > ```
 > 
 > ## 许可证

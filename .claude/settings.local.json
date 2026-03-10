@@ -5,7 +5,9 @@
       "Bash(python -c \"from twenty_four.solver import solve_24; print\\(''测试 1,2,3,4:'', solve_24\\([1,2,3,4]\\)[:3]\\); print\\(''测试 8,3,8,3:'', solve_24\\([8,3,8,3]\\)[:1]\\); print\\(''测试 1,1,1,1:'', solve_24\\([1,1,1,1]\\)\\)\")",
       "Bash(PYTHONPATH=src python -c \"from twenty_four.solver import solve_24; print\\(''Test 1,2,3,4:'', solve_24\\([1,2,3,4]\\)[:3]\\); print\\(''Test 8,3,8,3:'', solve_24\\([8,3,8,3]\\)[:1]\\); print\\(''Test 1,1,1,1:'', solve_24\\([1,1,1,1]\\)\\)\")",
       "Bash(PYTHONPATH=src python -c \"from twenty_four.solver import solve_24; print\\(''Test 8,3,8,3:'', solve_24\\([8,3,8,3]\\)\\)\")",
-      "Bash(PYTHONPATH=src python -c \":*)"
+      "Bash(PYTHONPATH=src python -c \":*)",
+      "Bash(uv sync:*)",
+      "Bash(uv run:*)"
     ]
   }
 }
