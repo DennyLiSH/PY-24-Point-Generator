@@ -2,6 +2,7 @@
 
 使用递归归约法求解给定4个数字是否能通过四则运算得到24。
 采用Fraction避免浮点精度问题。
+支持结合律等价去重和括号简化。
 """
 
 from __future__ import annotations
@@ -17,86 +18,118 @@ if TYPE_CHECKING:
 TARGET = Fraction(24)
 OPERATORS = ("+", "-", "*", "/")
 
+# 运算符优先级
+PRECEDENCE = {"+": 1, "-": 1, "*": 2, "/": 2}
+
 
 @dataclass
 class Expression:
     """表达式节点，支持构建表达式树。"""
 
     value: Fraction  # 数值
-    repr: str  # 字符串表示（无括号）
-    display: str  # 带括号的显示形式
+    op: str | None  # 运算符，基本数字为 None
+    operands: tuple  # 操作数列表（存储 Expression 或基本数字）
 
     def __hash__(self) -> int:
-        return hash((self.value, self.display))
+        return hash((self.op, self.operands))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Expression):
             return NotImplemented
-        return self.value == other.value and self.display == other.display
+        return self.op == other.op and self.operands == other.operands
+
+    def is_atom(self) -> bool:
+        """是否为基本数字。"""
+        return self.op is None
+
+    def to_display(self, parent_op: str | None = None, is_right: bool = False) -> str:
+        """生成显示形式，根据上下文简化括号。
+
+        Args:
+            parent_op: 父节点的运算符
+            is_right: 是否为父节点的右操作数
+        """
+        if self.is_atom():
+            return str(self.operands[0])
+
+        # 获取当前运算符优先级
+        my_prec = PRECEDENCE.get(self.op, 0)
+        parent_prec = PRECEDENCE.get(parent_op, 0) if parent_op else 0
+
+        # 生成子表达式
+        if self.op in ("+", "*"):
+            # 加法和乘法：收集所有操作数，用运算符连接
+            parts = [e.to_display(self.op, is_right=False) for e in self.operands]
+            result = self.op.join(parts)
+        else:
+            # 减法和除法：二元运算
+            left = self.operands[0].to_display(self.op, is_right=False)
+            right = self.operands[1].to_display(self.op, is_right=True)
+            result = f"{left}{self.op}{right}"
+
+        # 判断是否需要括号
+        need_paren = False
+        if parent_op:
+            if my_prec < parent_prec:
+                # 低优先级嵌套在高优先级中，需要括号
+                need_paren = True
+            elif my_prec == parent_prec:
+                # 同优先级
+                if parent_op in ("-", "/"):
+                    # 减法和除法不满足结合律，右操作数需要括号
+                    if is_right:
+                        need_paren = True
+
+        return f"({result})" if need_paren else result
+
+
+def _make_canonical(op: str, a: Expression, b: Expression) -> Expression:
+    """创建规范化表达式，处理结合律等价。"""
+    if op in ("+", "*"):
+        # 收集所有连续同运算的操作数
+        operands: list[Expression] = []
+        for expr in (a, b):
+            if expr.op == op:
+                # 该表达式也是同运算，展开其操作数
+                operands.extend(expr.operands)
+            else:
+                operands.append(expr)
+        # 按显示形式排序（确保等价表达式产生相同顺序）
+        operands.sort(key=lambda e: e.to_display())
+        return Expression(value=_compute_value(op, a, b), op=op, operands=tuple(operands))
+    else:
+        # 减法和除法不满足交换律/结合律
+        return Expression(value=_compute_value(op, a, b), op=op, operands=(a, b))
+
+
+def _compute_value(op: str, a: Expression, b: Expression) -> Fraction:
+    """计算运算结果。"""
+    if op == "+":
+        return a.value + b.value
+    elif op == "-":
+        return a.value - b.value
+    elif op == "*":
+        return a.value * b.value
+    elif op == "/":
+        return a.value / b.value
+    raise ValueError(f"Unknown operator: {op}")
 
 
 def _apply_operator(a: Expression, b: Expression, op: str) -> Expression | None:
-    """应用运算符，返回新表达式。
-
-    Args:
-        a: 第一个操作数
-        b: 第二个操作数
-        op: 运算符 (+, -, *, /)
-
-    Returns:
-        新的表达式，如果运算无效（如除零）返回 None
-    """
-    # 对于交换律运算符，规范化操作数顺序，确保等价表达式去重
-    if op in ("+", "*"):
-        if a.display > b.display:
-            a, b = b, a
-
-    if op == "+":
-        return Expression(
-            value=a.value + b.value,
-            repr=f"{a.repr}+{b.repr}",
-            display=f"({a.display}+{b.display})",
-        )
-    elif op == "-":
-        return Expression(
-            value=a.value - b.value,
-            repr=f"{a.repr}-{b.repr}",
-            display=f"({a.display}-{b.display})",
-        )
-    elif op == "*":
-        return Expression(
-            value=a.value * b.value,
-            repr=f"{a.repr}*{b.repr}",
-            display=f"({a.display}*{b.display})",
-        )
-    elif op == "/":
-        if b.value == 0:
-            return None
-        return Expression(
-            value=a.value / b.value,
-            repr=f"{a.repr}/{b.repr}",
-            display=f"({a.display}/{b.display})",
-        )
-    return None
+    """应用运算符，返回新表达式。"""
+    if op == "/" and b.value == 0:
+        return None
+    return _make_canonical(op, a, b)
 
 
 def _solve_recursive(
     expressions: list[Expression],
     results: set[str],
 ) -> None:
-    """递归求解所有可能的表达式组合。
-
-    Args:
-        expressions: 当前的表达式列表
-        results: 存储结果的集合
-    """
+    """递归求解所有可能的表达式组合。"""
     if len(expressions) == 1:
         if expressions[0].value == TARGET:
-            # 去掉最外层括号
-            display = expressions[0].display
-            if display.startswith("(") and display.endswith(")"):
-                display = display[1:-1]
-            results.add(display)
+            results.add(expressions[0].to_display())
         return
 
     # 从当前表达式中任选两个进行运算
@@ -124,12 +157,6 @@ def solve_24(numbers: Sequence[int]) -> list[str]:
 
     Returns:
         所有可能的表达式列表，无解返回空列表
-
-    Examples:
-        >>> solve_24([1, 2, 3, 4])
-        ['(1+2+3)*4', ...]
-        >>> solve_24([1, 1, 1, 1])
-        []
     """
     if len(numbers) != 4:
         return []
@@ -138,9 +165,10 @@ def solve_24(numbers: Sequence[int]) -> list[str]:
 
     # 穷举所有数字排列
     for perm in permutations(numbers):
-        # 将数字转换为Expression对象
+        # 将数字转换为 Expression 对象
         expressions = [
-            Expression(value=Fraction(n), repr=str(n), display=str(n)) for n in perm
+            Expression(value=Fraction(n), op=None, operands=(n,))
+            for n in perm
         ]
         _solve_recursive(expressions, results)
 
@@ -148,12 +176,5 @@ def solve_24(numbers: Sequence[int]) -> list[str]:
 
 
 def has_solution(numbers: Sequence[int]) -> bool:
-    """检查给定数字是否有解。
-
-    Args:
-        numbers: 4个整数
-
-    Returns:
-        是否存在至少一个解
-    """
+    """检查给定数字是否有解。"""
     return len(solve_24(numbers)) > 0

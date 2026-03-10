@@ -76,15 +76,30 @@ class TestEquivalentDeduplication:
         """测试交换律去重：a*b 和 b*a 只保留一种。"""
         # 11, 5, 2, 2 应该减少等价形式
         results = solve_24([11, 5, 2, 2])
-        # 验证解的数量应该合理（规范化后减少）
-        assert len(results) < 20, f"Expected < 20 solutions, got {len(results)}"
+        # 验证解的数量应该大幅减少（结合律去重）
+        assert len(results) < 5, f"Expected < 5 solutions, got {len(results)}: {results}"
+
+    def test_associative_deduplication(self) -> None:
+        """测试结合律去重：(a+b)+c 和 a+(b+c) 只保留一种。"""
+        # 4, 10, 2, 5 的 ((2*5)+10)+4 和 ((2*5)+4)+10 应合并
+        results = solve_24([4, 10, 2, 5])
+        # 验证解的数量应该很少
+        assert len(results) < 5, f"Expected < 5 solutions, got {len(results)}: {results}"
+
+    def test_parenthesis_simplification(self) -> None:
+        """测试括号简化。"""
+        results = solve_24([11, 5, 2, 2])
+        # 所有解应该没有多余括号
+        for expr in results:
+            # 不应该有 (( 开头
+            assert not expr.startswith("(("), f"Double parentheses in: {expr}"
 
     def test_commutative_addition(self) -> None:
         """测试加法交换律去重。"""
         # 1, 2, 3, 4 不应同时包含大量交换律变体
         results = solve_24([1, 2, 3, 4])
-        # 验证数量合理（规范化后减少，但仍可能有结合律变体）
-        assert len(results) <= 60, f"Expected <= 60 solutions, got {len(results)}"
+        # 验证数量合理（规范化后大幅减少，从原来的80+降到22左右）
+        assert len(results) <= 25, f"Expected <= 25 solutions, got {len(results)}"
 
     def test_no_duplicate_patterns(self) -> None:
         """测试没有重复模式。"""
