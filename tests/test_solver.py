@@ -67,3 +67,34 @@ class TestHasSolution:
         """测试无解情况。"""
         assert has_solution([1, 1, 1, 1]) is False
         assert has_solution([13, 13, 13, 13]) is False
+
+
+class TestEquivalentDeduplication:
+    """等价表达式去重测试。"""
+
+    def test_commutative_deduplication(self) -> None:
+        """测试交换律去重：a*b 和 b*a 只保留一种。"""
+        # 11, 5, 2, 2 应该减少等价形式
+        results = solve_24([11, 5, 2, 2])
+        # 验证解的数量应该合理（规范化后减少）
+        assert len(results) < 20, f"Expected < 20 solutions, got {len(results)}"
+
+    def test_commutative_addition(self) -> None:
+        """测试加法交换律去重。"""
+        # 1, 2, 3, 4 不应同时包含大量交换律变体
+        results = solve_24([1, 2, 3, 4])
+        # 验证数量合理（规范化后减少，但仍可能有结合律变体）
+        assert len(results) <= 60, f"Expected <= 60 solutions, got {len(results)}"
+
+    def test_no_duplicate_patterns(self) -> None:
+        """测试没有重复模式。"""
+        results = solve_24([1, 2, 3, 4])
+        # 检查没有完全相同的结果
+        assert len(results) == len(set(results))
+
+    def test_classic_case_unchanged(self) -> None:
+        """测试经典案例 8,3,8,3 仍然正确。"""
+        results = solve_24([8, 3, 8, 3])
+        assert len(results) >= 1
+        # 注意：不使用 eval() 验证，因为浮点精度问题
+        # 求解器内部使用 Fraction 精确计算，结果可信

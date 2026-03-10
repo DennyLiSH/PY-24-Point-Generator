@@ -46,6 +46,11 @@ def _apply_operator(a: Expression, b: Expression, op: str) -> Expression | None:
     Returns:
         新的表达式，如果运算无效（如除零）返回 None
     """
+    # 对于交换律运算符，规范化操作数顺序，确保等价表达式去重
+    if op in ("+", "*"):
+        if a.display > b.display:
+            a, b = b, a
+
     if op == "+":
         return Expression(
             value=a.value + b.value,
