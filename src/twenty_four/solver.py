@@ -90,6 +90,93 @@ class Expression:
 
         return f"({result})" if need_paren else result
 
+    def _remove_trivial_one(self) -> Expression:
+        """移除冗余的 1 操作，返回简化后的表达式。
+
+        冗余操作定义：
+        - 1 * expr → expr
+        - expr * 1 → expr
+        - expr / 1 → expr
+        """
+        if self.is_atom():
+            return self
+
+        # 递归处理子表达式
+        new_operands = tuple(
+            e._remove_trivial_one() if isinstance(e, Expression) else e
+            for e in self.operands
+        )
+
+        # 检查是否可以移除当前的 1 操作
+        if self.op == "*" and len(new_operands) >= 2:
+            # 对于乘法，检查是否有操作数为 1
+            filtered: list[Expression] = []
+            has_one = False
+            for op in new_operands:
+                if isinstance(op, Expression) and op.is_atom() and op.operands[0] == 1:
+                    has_one = True
+                elif isinstance(op, Expression):
+                    filtered.append(op)
+
+            if has_one and len(filtered) >= 1:
+                # 如果移除 1 后只剩一个操作数，返回该操作数
+                if len(filtered) == 1:
+                    return filtered[0]
+                # 否则重新构建表达式
+                return Expression(
+                    value=self.value,
+                    op=self.op,
+                    operands=tuple(filtered)
+                )
+
+        if self.op == "/" and len(new_operands) == 2:
+            left, right = new_operands
+            # expr / 1 → expr（只有除数是 1 才是冗余）
+            if isinstance(right, Expression) and right.is_atom() and right.operands[0] == 1:
+                return left
+
+        # 无法简化，返回处理后的表达式
+        return Expression(value=self.value, op=self.op, operands=new_operands)
+
+    def _has_trivial_one(self) -> bool:
+        """检查表达式是否包含冗余的 1 操作。"""
+        if self.is_atom():
+            return False
+
+        # 检查当前操作
+        if self.op == "*":
+            for op in self.operands:
+                if isinstance(op, Expression) and op.is_atom() and op.operands[0] == 1:
+                    return True
+
+        if self.op == "/" and len(self.operands) == 2:
+            right = self.operands[1]
+            if isinstance(right, Expression) and right.is_atom() and right.operands[0] == 1:
+                return True
+
+        # 递归检查子表达式
+        return any(
+            e._has_trivial_one() for e in self.operands if isinstance(e, Expression)
+        )
+
+
+@dataclass
+class Solution:
+    """24点解法。
+
+    Attributes:
+        expression: 简化后的表达式。
+        has_trivial_one: 是否包含冗余的 1 操作。
+    """
+
+    expression: str
+    has_trivial_one: bool
+
+    def __str__(self) -> str:
+        if self.has_trivial_one:
+            return f"{self.expression} (1 可参与计算)"
+        return self.expression
+
 
 def _make_canonical(op: str, a: Expression, b: Expression) -> Expression:
     """创建规范化表达式，处理结合律等价。"""
@@ -146,12 +233,28 @@ def _apply_operator(a: Expression, b: Expression, op: str) -> Expression | None:
 
 def _solve_recursive(
     expressions: list[Expression],
-    results: set[str],
+    results: dict[str, Solution],
 ) -> None:
     """递归求解所有可能的表达式组合。"""
     if len(expressions) == 1:
         if expressions[0].value == TARGET:
-            results.add(expressions[0].to_display())
+            expr = expressions[0]
+            core_expr = expr._remove_trivial_one()
+            core_str = core_expr.to_display()
+            has_trivial_one = expr._has_trivial_one()
+
+            # 使用核心表达式去重
+            if core_str not in results:
+                results[core_str] = Solution(
+                    expression=core_str,
+                    has_trivial_one=has_trivial_one
+                )
+            elif has_trivial_one and not results[core_str].has_trivial_one:
+                # 优先保留有冗余 1 的标记（因为可以提示用户）
+                results[core_str] = Solution(
+                    expression=core_str,
+                    has_trivial_one=True
+                )
         return
 
     # 从当前表达式中任选两个进行运算
@@ -185,7 +288,7 @@ def solve_24(numbers: Sequence[int]) -> list[str]:
     if len(numbers) != 4:
         return []
 
-    results: set[str] = set()
+    results: dict[str, Solution] = {}
 
     # 穷举所有数字排列
     for perm in permutations(numbers):
@@ -195,7 +298,7 @@ def solve_24(numbers: Sequence[int]) -> list[str]:
         ]
         _solve_recursive(expressions, results)
 
-    return sorted(results)
+    return sorted(str(sol) for sol in results.values())
 
 
 def has_solution(numbers: Sequence[int]) -> bool:

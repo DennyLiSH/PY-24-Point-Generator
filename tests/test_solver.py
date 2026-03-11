@@ -116,3 +116,39 @@ class TestEquivalentDeduplication:
         assert len(results) >= 1
         # 注意：不使用 eval() 验证，因为浮点精度问题
         # 求解器内部使用 Fraction 精确计算，结果可信
+
+
+class TestTrivialOneDeduplication:
+    """测试冗余的 1 操作去重。"""
+
+    def test_trivial_one_deduplication(self) -> None:
+        """测试 1 相关的冗余解法去重。"""
+        results = solve_24([1, 3, 6, 10])
+        # 核心解法 10*3-6 应该存在
+        assert any("10*3-6" in r for r in results)
+        # 应该有 "1 可参与计算" 的提示
+        assert any("1 可参与计算" in r for r in results)
+        # 解法数量应该减少（原来是 9 个，现在应该更少）
+        assert len(results) < 9
+
+    def test_non_trivial_one_preserved(self) -> None:
+        """测试非冗余的 1 操作保留。"""
+        results = solve_24([1, 3, 6, 10])
+        # 10/(1/3)-6 是有效解法（1/3 不是冗余，被除数是 1 但不是冗余）
+        assert any("1/3" in r for r in results)
+        # 3/(1/10)-6 是有效解法
+        assert any("1/10" in r for r in results)
+
+    def test_multiple_one_operations(self) -> None:
+        """测试多个 1 操作的处理。"""
+        results = solve_24([1, 2, 3, 4])
+        # 1*2*3*4 应该简化为 2*3*4
+        assert any("2*3*4" in r and "1 可参与计算" in r for r in results)
+
+    def test_nested_trivial_one(self) -> None:
+        """测试嵌套的冗余 1 操作。"""
+        results = solve_24([1, 3, 6, 10])
+        # 10*3-1*6 中的 1*6 会被简化，所以和 10*3-6 是同一解法
+        # 解法中不应该有 "1*6"
+        trivial_one_solutions = [r for r in results if "1*6" in r]
+        assert len(trivial_one_solutions) == 0

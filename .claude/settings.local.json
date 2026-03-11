@@ -7,7 +7,10 @@
       "Bash(PYTHONPATH=src python -c \"from twenty_four.solver import solve_24; print\\(''Test 8,3,8,3:'', solve_24\\([8,3,8,3]\\)\\)\")",
       "Bash(PYTHONPATH=src python -c \":*)",
       "Bash(uv sync:*)",
-      "Bash(uv run:*)"
+      "Bash(uv run:*)",
+      "Bash(python -c \"from twenty_four.solver import solve_24; results = solve_24\\([1, 3, 6, 10]\\); print\\(''解法数量:'', len\\(results\\)\\); print\\(''\\\\n''.join\\(results\\)\\)\")",
+      "Bash(where python:*)",
+      "Bash(echo $VIRTUAL_ENV)"
     ]
   }
 }
