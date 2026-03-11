@@ -152,3 +152,6 @@ Thumbs.db
 local_config.py
 secrets.py
 credentials.json
+
+python-best-practices*/
+.claude/

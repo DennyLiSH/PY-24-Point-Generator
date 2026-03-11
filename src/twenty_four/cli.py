@@ -8,6 +8,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
+from .exceptions import ProblemGenerationError
 from .generator import Problem, ProblemGenerator
 from .solver import solve_24
 
@@ -68,7 +69,11 @@ class TwentyFourCLI:
         if self.current_problem:
             print(f"当前题目：{self.current_problem}")
             if self.current_solutions is not None:
-                status = f"（有 {len(self.current_solutions)} 种解法）" if self.current_solutions else "（无解）"
+                status = (
+                    f"（有 {len(self.current_solutions)} 种解法）"
+                    if self.current_solutions
+                    else "（无解）"
+                )
                 print(f"状态：{status}")
 
         print()
@@ -80,7 +85,7 @@ class TwentyFourCLI:
             self.current_solutions = solve_24(self.current_problem.numbers)
             print(f"\n新题目：{self.current_problem}")
             print(f"此题目有解！（共 {len(self.current_solutions)} 种解法）")
-        except RuntimeError:
+        except ProblemGenerationError:
             # 如果无法生成有解题目，生成任意题目
             self.current_problem = self.generator.generate(ensure_solvable=False)
             self.current_solutions = solve_24(self.current_problem.numbers)
@@ -124,7 +129,7 @@ class TwentyFourCLI:
         """
         try:
             return input(prompt)
-        except (EOFError, KeyboardInterrupt):
+        except EOFError, KeyboardInterrupt:
             print()  # 打印换行
             self._display_goodbye()
             sys.exit(0)

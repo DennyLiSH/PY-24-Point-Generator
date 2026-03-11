@@ -1,6 +1,5 @@
 """24点求解器测试。"""
 
-import pytest
 
 from twenty_four.solver import has_solution, solve_24
 
@@ -77,14 +76,18 @@ class TestEquivalentDeduplication:
         # 11, 5, 2, 2 应该减少等价形式
         results = solve_24([11, 5, 2, 2])
         # 验证解的数量应该大幅减少（结合律去重）
-        assert len(results) < 5, f"Expected < 5 solutions, got {len(results)}: {results}"
+        assert len(results) < 5, (
+            f"Expected < 5 solutions, got {len(results)}: {results}"
+        )
 
     def test_associative_deduplication(self) -> None:
         """测试结合律去重：(a+b)+c 和 a+(b+c) 只保留一种。"""
         # 4, 10, 2, 5 的 ((2*5)+10)+4 和 ((2*5)+4)+10 应合并
         results = solve_24([4, 10, 2, 5])
         # 验证解的数量应该很少
-        assert len(results) < 5, f"Expected < 5 solutions, got {len(results)}: {results}"
+        assert len(results) < 5, (
+            f"Expected < 5 solutions, got {len(results)}: {results}"
+        )
 
     def test_parenthesis_simplification(self) -> None:
         """测试括号简化。"""

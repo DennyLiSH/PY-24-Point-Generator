@@ -12,6 +12,8 @@ from fractions import Fraction
 from itertools import permutations
 from typing import TYPE_CHECKING
 
+from .exceptions import InvalidOperatorError
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -22,13 +24,19 @@ OPERATORS = ("+", "-", "*", "/")
 PRECEDENCE = {"+": 1, "-": 1, "*": 2, "/": 2}
 
 
-@dataclass
+@dataclass(slots=True)
 class Expression:
-    """表达式节点，支持构建表达式树。"""
+    """表达式节点，支持构建表达式树。
 
-    value: Fraction  # 数值
-    op: str | None  # 运算符，基本数字为 None
-    operands: tuple  # 操作数列表（存储 Expression 或基本数字）
+    Attributes:
+        value: 数值。
+        op: 运算符，基本数字为 None。
+        operands: 操作数列表。原子节点存储原始整数，复合节点存储子表达式。
+    """
+
+    value: Fraction
+    op: str | None
+    operands: tuple[Expression | int, ...]
 
     def __hash__(self) -> int:
         return hash((self.op, self.operands))
@@ -52,19 +60,22 @@ class Expression:
         if self.is_atom():
             return str(self.operands[0])
 
-        # 获取当前运算符优先级
+        # 获取当前运算符优先级（此时 self.op 必不为 None，因为 is_atom() 为 False）
+        assert self.op is not None  # noqa: S101
         my_prec = PRECEDENCE.get(self.op, 0)
         parent_prec = PRECEDENCE.get(parent_op, 0) if parent_op else 0
 
         # 生成子表达式
+        # 此时 self.op 不为 None，所以 operands 中的元素都是 Expression
+        operands_expr = [e for e in self.operands if isinstance(e, Expression)]
         if self.op in ("+", "*"):
             # 加法和乘法：收集所有操作数，用运算符连接
-            parts = [e.to_display(self.op, is_right=False) for e in self.operands]
+            parts = [e.to_display(self.op, is_right=False) for e in operands_expr]
             result = self.op.join(parts)
         else:
             # 减法和除法：二元运算
-            left = self.operands[0].to_display(self.op, is_right=False)
-            right = self.operands[1].to_display(self.op, is_right=True)
+            left = operands_expr[0].to_display(self.op, is_right=False)
+            right = operands_expr[1].to_display(self.op, is_right=True)
             result = f"{left}{self.op}{right}"
 
         # 判断是否需要括号
@@ -73,12 +84,9 @@ class Expression:
             if my_prec < parent_prec:
                 # 低优先级嵌套在高优先级中，需要括号
                 need_paren = True
-            elif my_prec == parent_prec:
-                # 同优先级
-                if parent_op in ("-", "/"):
-                    # 减法和除法不满足结合律，右操作数需要括号
-                    if is_right:
-                        need_paren = True
+            elif my_prec == parent_prec and parent_op in ("-", "/") and is_right:
+                # 同优先级：减法和除法不满足结合律，右操作数需要括号
+                need_paren = True
 
         return f"({result})" if need_paren else result
 
@@ -90,20 +98,34 @@ def _make_canonical(op: str, a: Expression, b: Expression) -> Expression:
         operands: list[Expression] = []
         for expr in (a, b):
             if expr.op == op:
-                # 该表达式也是同运算，展开其操作数
-                operands.extend(expr.operands)
+                # 该表达式也是同运算，展开其操作数（此时操作数必为 Expression）
+                operands.extend(e for e in expr.operands if isinstance(e, Expression))
             else:
                 operands.append(expr)
         # 按显示形式排序（确保等价表达式产生相同顺序）
         operands.sort(key=lambda e: e.to_display())
-        return Expression(value=_compute_value(op, a, b), op=op, operands=tuple(operands))
+        return Expression(
+            value=_compute_value(op, a, b), op=op, operands=tuple(operands)
+        )
     else:
         # 减法和除法不满足交换律/结合律
         return Expression(value=_compute_value(op, a, b), op=op, operands=(a, b))
 
 
 def _compute_value(op: str, a: Expression, b: Expression) -> Fraction:
-    """计算运算结果。"""
+    """计算运算结果。
+
+    Args:
+        op: 运算符。
+        a: 左操作数。
+        b: 右操作数。
+
+    Returns:
+        运算结果。
+
+    Raises:
+        InvalidOperatorError: 遇到未知运算符。
+    """
     if op == "+":
         return a.value + b.value
     elif op == "-":
@@ -112,7 +134,7 @@ def _compute_value(op: str, a: Expression, b: Expression) -> Fraction:
         return a.value * b.value
     elif op == "/":
         return a.value / b.value
-    raise ValueError(f"Unknown operator: {op}")
+    raise InvalidOperatorError(op)
 
 
 def _apply_operator(a: Expression, b: Expression, op: str) -> Expression | None:
@@ -139,7 +161,9 @@ def _solve_recursive(
                 continue
 
             a, b = expressions[i], expressions[j]
-            remaining = [expressions[k] for k in range(len(expressions)) if k != i and k != j]
+            remaining = [
+                expressions[k] for k in range(len(expressions)) if k != i and k != j
+            ]
 
             for op in OPERATORS:
                 result = _apply_operator(a, b, op)
@@ -167,8 +191,7 @@ def solve_24(numbers: Sequence[int]) -> list[str]:
     for perm in permutations(numbers):
         # 将数字转换为 Expression 对象
         expressions = [
-            Expression(value=Fraction(n), op=None, operands=(n,))
-            for n in perm
+            Expression(value=Fraction(n), op=None, operands=(n,)) for n in perm
         ]
         _solve_recursive(expressions, results)
 

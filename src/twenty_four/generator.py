@@ -9,20 +9,27 @@ import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .exceptions import ProblemGenerationError
 from .solver import has_solution
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Problem:
-    """24点题目。"""
+    """24点题目。
+
+    Attributes:
+        numbers: 题目的四个数字。
+    """
 
     numbers: tuple[int, int, int, int]
 
     def __str__(self) -> str:
-        return f"{self.numbers[0]} {self.numbers[1]} {self.numbers[2]} {self.numbers[3]}"
+        return (
+            f"{self.numbers[0]} {self.numbers[1]} {self.numbers[2]} {self.numbers[3]}"
+        )
 
     @property
     def has_solution(self) -> bool:
@@ -50,18 +57,20 @@ class ProblemGenerator:
         self.max_num = max_num
         self._rng = random.Random(seed)
 
-    def generate(self, ensure_solvable: bool = True, max_attempts: int = 1000) -> Problem:
+    def generate(
+        self, ensure_solvable: bool = True, max_attempts: int = 1000
+    ) -> Problem:
         """生成一道题目。
 
         Args:
-            ensure_solvable: 是否保证题目有解
-            max_attempts: 最大尝试次数（仅当ensure_solvable为True时有效）
+            ensure_solvable: 是否保证题目有解。
+            max_attempts: 最大尝试次数（仅当 ensure_solvable 为 True 时有效）。
 
         Returns:
-            生成的题目
+            生成的题目。
 
         Raises:
-            RuntimeError: 无法在指定次数内生成有解题目
+            ProblemGenerationError: 无法在指定次数内生成有解题目。
         """
         if not ensure_solvable:
             return self._generate_random()
@@ -71,13 +80,15 @@ class ProblemGenerator:
             if problem.has_solution:
                 return problem
 
-        msg = f"无法在 {max_attempts} 次尝试内生成有解题目"
-        raise RuntimeError(msg)
+        raise ProblemGenerationError(max_attempts)
 
     def _generate_random(self) -> Problem:
         """生成随机题目。"""
-        numbers = tuple(
-            self._rng.randint(self.min_num, self.max_num) for _ in range(4)
+        numbers: tuple[int, int, int, int] = (
+            self._rng.randint(self.min_num, self.max_num),
+            self._rng.randint(self.min_num, self.max_num),
+            self._rng.randint(self.min_num, self.max_num),
+            self._rng.randint(self.min_num, self.max_num),
         )
         return Problem(numbers=numbers)
 
